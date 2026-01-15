@@ -9,6 +9,8 @@ from jax.lax import Precision
 from sgl_jax.srt.multimodal.common.ServerArgs import MultimodalServerArgs
 from sgl_jax.srt.multimodal.manager.schedule_batch import Req
 
+from sgl_jax.srt.multimodal.models.wan2_1.diffusion.wan2_1_dit import WanTransformer3DModel
+from typing import ClassVar, Any
 
 # Small config for unit testing to avoid OOM
 @dataclasses.dataclass
@@ -20,6 +22,7 @@ class SmallWanModelConfig:
     precision = Precision.HIGHEST
     num_layers: int = 2  # Reduced from 30
     hidden_dim: int = 1536
+    hidden_size: int = 1536
     in_channels: int = 16
     out_channels: int = 16
     ffn_dim: int = 8960
@@ -44,6 +47,14 @@ class SmallWanModelConfig:
     head_dim: int = 128
     text_embed_dim: int = 4096
     num_attention_heads: int = 12
+    flow_shift: float = 3.0
+    revision: str | None = None
+    scale_factor_spatial: int = 8
+    scale_factor_temporal: int = 4
+
+    def get_total_num_kv_heads(self) -> int:
+        return self.num_attention_heads
+
 
 
 class TestDiffusionScheduler(unittest.TestCase):
@@ -58,7 +69,7 @@ class TestDiffusionScheduler(unittest.TestCase):
         )
         # Patch WanModelConfig with small config before importing DiffusionScheduler
         with patch(
-            "sgl_jax.srt.multimodal.model_executor.diffusion.diffusion_model_runner.WanModelConfig",
+            "sgl_jax.srt.multimodal.configs.dits.wan_model_config.WanModelConfig",
             SmallWanModelConfig,
         ):
             from sgl_jax.srt.multimodal.manager.scheduler.diffusion_scheduler import (
@@ -70,6 +81,7 @@ class TestDiffusionScheduler(unittest.TestCase):
                     server_args=cls.server_args,
                     mesh=cls.mesh,
                     communication_backend=None,
+                    model_class=WanTransformer3DModel,
                 )
 
     def test_run_diffusion_step(self):
@@ -82,6 +94,10 @@ class TestDiffusionScheduler(unittest.TestCase):
             prompt_embeds=jnp.zeros((1, 512, 4096), dtype=jnp.float32),
             num_inference_steps=2,
             guidance_scale=1.0,
+
+            width=16,
+            height=16,     
+            num_frames=1,    
         )
 
         # Run diffusion step

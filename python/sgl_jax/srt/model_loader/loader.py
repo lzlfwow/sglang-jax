@@ -213,6 +213,9 @@ class JAXModelLoader(DefaultModelLoader):
             model_class, _ = get_model_architecture(model_config)
 
         if not hasattr(model_class, "load_weights"):
+            print(f"DEBUG: model_config type is {type(model_config)}")
+            print(model_config)
+            print(model_class)
             raise ValueError(
                 f"Model class {model_class.__name__} does not support weights loading. "
                 "Please ensure you're using a JAX-compatible model and implement load_weights method."
